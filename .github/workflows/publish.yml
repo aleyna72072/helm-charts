@@ -29,8 +29,29 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Package and publish chart
         run: |
-          echo ${{ github.ref_name }}
-          yq '.version' ./charts/edumfa/Chart.yaml 
+          set -euo pipefail
+          git_tag="${{ github.ref_name }}"
+          git_tag_prefix="edumfa-"
+          git_tag_version=${git_tag#"$git_tag_prefix"}
+          chart_version="$(yq '.version' ./charts/edumfa/Chart.yaml)"
+
+          # If the git tag and the chart version is not equal, abort.
+          if [ "$git_tag_version" != "$chart_version" ]; then
+            echo "Git tag and chart version have unequal version. Aborting.."
+            exit 1
+          fi
+
+          # Helm and GHCR do not currently allow immutable tags/no overwriting
+          # existing ones. Check tediously if the chart version already exists.
+          # Abort if so.
+          ghcr_token=$(curl -s "https://ghcr.io/token?scope=repository:aleyna72072/helm-charts/edumfa:pull" | jq -r .token)
+          # this is either "false" or "true"
+          has_version=$(curl -s -H "Authorization: Bearer $ghcr_token" "https://ghcr.io/v2/aleyna72072/helm-charts/edumfa/tags/list" | jq "any(.tags[]; . == \"${chart_version}\")")
+          if [ "$has_version" != "false" ]; then
+            echo "Version $chart_version already exists. Aborting..."
+            exit 2
+          fi
+
           helm package ./charts/edumfa/
           helm push edumfa*.tgz ${{ env.REPOSITORY  }}
       - name: GitHub Release
