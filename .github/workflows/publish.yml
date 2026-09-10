@@ -16,7 +16,7 @@ jobs:
       packages: write
     env:
         REGISTRY: ghcr.io
-        IMAGE_NAME: edumfa/helm-charts/edumfa
+        IMAGE_NAME: aleyna72072/helm-charts/edumfa
     steps:
       - uses: actions/checkout@v7
       - name: Set up Helm
