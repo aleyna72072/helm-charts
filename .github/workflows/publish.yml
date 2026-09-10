@@ -15,7 +15,7 @@ jobs:
       packages: write
     env:
        REGISTRY: "ghcr.io"
-       REPOSITORY: "oci://${{ env.REGISTRY }}/aleyna72072/helm-charts"
+       REPOSITORY: "oci://ghcr.io/aleyna72072/helm-charts"
     steps:
       - uses: actions/checkout@v7
       - name: Set up Helm
