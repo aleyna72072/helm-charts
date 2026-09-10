@@ -4,6 +4,6 @@ description: A Helm chart for eduMFA
 icon: https://raw.githubusercontent.com/eduMFA/eduMFA/main/doc/_static/images/edumfa-icon.png
 type: application
 
-version: 0.3.0
+version: 0.3.9
 # TODO set to 2.10.0 on v1.0.0
 appVersion: ""
