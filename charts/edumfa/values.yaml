@@ -201,3 +201,13 @@ httpRoute:
   #     headers:
   #     - name: version
   #       value: v2
+
+# List of extra Kubernetes Objects to create (with Helm templating support).
+extraObjects: []
+#  - |
+#    apiVersion: v1
+#    kind: ConfigMap
+#    metadata:
+#      name: {{ include "edumfa.fullname" . }}-extraobjects-example
+#    data:
+#      thisChart: "Chart: {{ .Chart.Name }}"
