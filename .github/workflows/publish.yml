@@ -5,7 +5,6 @@ permissions:
 
 on:
   push:
-    branches: [ main ]
     tags:
       - "edumfa-*"
 
@@ -15,8 +14,8 @@ jobs:
     permissions:
       packages: write
     env:
-        REGISTRY: ghcr.io
-        IMAGE_NAME: aleyna72072/helm-charts/edumfa
+       REGISTRY: "ghcr.io"
+       REPOSITORY: "oci://${{ env.REGISTRY }}/aleyna72072/helm-charts"
     steps:
       - uses: actions/checkout@v7
       - name: Set up Helm
@@ -35,7 +34,7 @@ jobs:
       - name: Package and publish chart
         run: |
           helm package ./charts/edumfa/
-          helm push edumfa*.tgz oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          helm push edumfa*.tgz ${{ env.REPOSITORY  }}
       - name: GitHub Release
         uses: softprops/action-gh-release@v3
         with:
