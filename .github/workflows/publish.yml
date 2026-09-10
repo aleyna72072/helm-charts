@@ -14,6 +14,7 @@ jobs:
     env:
        REGISTRY: "ghcr.io"
        REPOSITORY: "oci://ghcr.io/aleyna72072/helm-charts"
+       GHCR_REPOSITORY: "aleyna72072/helm-charts/edumfa"
     steps:
       - uses: actions/checkout@v7
       - name: Set up Helm
@@ -44,9 +45,9 @@ jobs:
           # Helm and GHCR do not currently allow immutable tags/no overwriting
           # existing ones. Check tediously if the chart version already exists.
           # Abort if so.
-          ghcr_token=$(curl -s "https://ghcr.io/token?scope=repository:aleyna72072/helm-charts/edumfa:pull" | jq -r .token)
+          ghcr_token=$(curl -s "https://ghcr.io/token?scope=repository:${{ env.GHCR_REPOSITORY }}:pull" | jq -r .token)
           # this is either "false" or "true"
-          has_version=$(curl -s -H "Authorization: Bearer $ghcr_token" "https://ghcr.io/v2/aleyna72072/helm-charts/edumfa/tags/list" | jq "any(.tags[]; . == \"${chart_version}\")")
+          has_version=$(curl -s -H "Authorization: Bearer $ghcr_token" "https://ghcr.io/v2/${{ env.GHCR_REPOSITORY }}/tags/list" | jq "any(.tags[]; . == \"${chart_version}\")")
           if [ "$has_version" != "false" ]; then
             echo "Version $chart_version already exists. Aborting..."
             exit 2
