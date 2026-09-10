@@ -1,7 +1,24 @@
+{{- /*
+  This is the shared spec template for eduMFA pods.
+
+  It takes a dictionary with the following required keys:
+  - Chart: .Chart
+  - Values: .Values
+  - specSettings: dictionary with optional template provided parameters
+  - specValues: dictionary with optional user/values provided parameters
+    + keys: resources, env, volumeMounts, volumes, nodeSelector, affinity, tolerations
+    + In practice this would be .Values.edumfa.worker, .Values.edumfa.init or similar.
+    + Note that podAnnotations are handled in the calling template.
+*/}}
+
 {{- define "edumfa.spec" }}
+{{- /* Check that if there either a CONTAINER_TYPE or a command set. This avoids running the single-node docker entrypoint. */}}
+{{- if not (or (hasKey .specSettings "command") (and (hasKey .specSettings "env") (contains "CONTAINER_TYPE" .specSettings.env))) }}
+  {{- required "Chart error: Either CONTAINER_TYPE or a command must be set!" "" }}
+{{- end}}
 {{- with .Values.imagePullSecrets }}
 imagePullSecrets:
-{{- toYaml . | nindent 2 }}
+  {{- toYaml . | nindent 2 }}
 {{- end }}
 securityContext:
   runAsNonRoot: true
@@ -20,95 +37,53 @@ containers:
     capabilities:
       drop:
         - ALL
-  {{/* TODO remove on v1.0.0 */}}
+  {{- /* TODO remove on v1.0.0 */}}
   {{- if or (ne .Values.image.repository "ghcr.io/edumfa/edumfa") .Values.image.tag }}
   image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
   {{- else }}
   image: "ghcr.io/edumfa/edumfa@sha256:c5ae9651a8676a6240d015465491a7d5ee5bd558803187fd0bc571f1f704e50f"
   {{- end }}
   imagePullPolicy: {{ .Values.image.pullPolicy }}
-  {{- with .command }}
+  {{- if hasKey .specSettings "command" }}
   command:
-    {{- range . }}
+    {{- range .specSettings.command }}
     - {{ . | quote }}
     {{- end }}
   {{- end }}
-  {{- if eq .containerType "helm_worker" }}
-  ports:
-  - name: http
-    containerPort: 8000
-    protocol: TCP
-  {{- with .Values.edumfa.worker.livenessProbe }}
-  livenessProbe:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- with .Values.edumfa.worker.readinessProbe }}
-  readinessProbe:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- end }}
-  {{- with .specSettings.resources }}
+  {{- with .specValues.resources }}
   resources:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   env:
-  {{- if eq .containerType "helm_init" }}
-  - name: CONTAINER_TYPE
-    value: "helm_init"
-    {{- if .Values.edumfa.admin.enabled }}
-  - name: EDUMFA_ADMIN_ENABLE
-    value: "true"
-      {{- with .Values.edumfa.admin.username }}
-  - name: EDUMFA_ADMIN_USER
-    value: {{ . }}
-      {{- end }}
-      {{- if .Values.edumfa.admin.password.existingSecret }}
-  - name: EDUMFA_ADMIN_PASS_FILE
-    value: /run/edumfa-admin-password
-      {{- end }}
-    {{- else }}
-  - name: EDUMFA_ADMIN_ENABLE
-    value: "false"
+    {{- if hasKey .specSettings "env" }}
+      {{- tpl .specSettings.env . | nindent 4 }}
     {{- end }}
-  {{- else if eq .containerType "helm_worker" }}
-  - name: CONTAINER_TYPE
-    value: "helm_worker"
-  {{- else if eq .containerType "cronjob" }}
-    {{- if not .command }}
-      {{- required "Cronjobs have to set a command to avoid running the entrypoint!" "" }}
-    {{- else }}
-  - name: CONTAINER_TYPE
-    value: "helm_cronjob"
+    - name: DB_DRIVER
+      value: {{ required "DB_DRIVER is required" .Values.edumfa.db.driver | quote }}
+    - name: DB_HOSTNAME
+      value: {{ required "DB_HOSTNAME is required" .Values.edumfa.db.hostname | quote }}
+    - name: DB_USER
+      value: {{ required "DB_USER is required" .Values.edumfa.db.user | quote }}
+    - name: DB_DATABASE
+      value: {{ required "DB_DATABASE is required" .Values.edumfa.db.database | quote }}
+    - name: EDUMFA_ENCFILE
+      value: /run/edumfa-essential-secrets/enckey
+    - name: EDUMFA_AUDIT_KEY_PRIVATE
+      value: /run/edumfa-essential-secrets/private.pem
+    - name: EDUMFA_AUDIT_KEY_PUBLIC
+      value: /run/edumfa-essential-secrets/public.pem
+    - name: SECRET_KEY_FILE
+      value: /run/edumfa-essential-secrets/secret_key
+    - name: EDUMFA_PEPPER_FILE
+      value: /run/edumfa-essential-secrets/pepper
+    - name: DB_PASSWORD_FILE
+      value: /run/edumfa-db-password
+    {{- with .Values.edumfa.env }}
+      {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- else }}
-  {{- required "Invalid containerType." "" }}
-  {{- end }}
-  - name: DB_DRIVER
-    value: {{ required "DB_DRIVER is required" .Values.edumfa.db.driver | quote }}
-  - name: DB_HOSTNAME
-    value: {{ required "DB_HOSTNAME is required" .Values.edumfa.db.hostname | quote }}
-  - name: DB_USER
-    value: {{ required "DB_USER is required" .Values.edumfa.db.user | quote }}
-  - name: DB_DATABASE
-    value: {{ required "DB_DATABASE is required" .Values.edumfa.db.database | quote }}
-  - name: EDUMFA_ENCFILE
-    value: /run/edumfa-essential-secrets/enckey
-  - name: EDUMFA_AUDIT_KEY_PRIVATE
-    value: /run/edumfa-essential-secrets/private.pem
-  - name: EDUMFA_AUDIT_KEY_PUBLIC
-    value: /run/edumfa-essential-secrets/public.pem
-  - name: SECRET_KEY_FILE
-    value: /run/edumfa-essential-secrets/secret_key
-  - name: EDUMFA_PEPPER_FILE
-    value: /run/edumfa-essential-secrets/pepper
-  - name: DB_PASSWORD_FILE
-    value: /run/edumfa-db-password
-  {{- with .Values.edumfa.env }}
-    {{- toYaml . | nindent 2 }}
-  {{- end }}
-  {{- with .specSettings.env }}
-    {{- toYaml . | nindent 2 }}
-  {{- end }}
+    {{- with .specValues.env }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   volumeMounts:
     - mountPath: /tmp
       name: tmp
@@ -119,15 +94,15 @@ containers:
       subPath: {{ required "If .Values.edumfa.admin.password.existingSecret is set, a key must be given, too!" .Values.edumfa.db.password.key }}
       name: db-password-secret
       readOnly: true
-    {{- if and (eq .containerType "helm_init") .Values.edumfa.admin.password.existingSecret }}
-    - mountPath: /run/edumfa-admin-password
-      subPath: {{ required "If .Values.edumfa.admin.password.existingSecret is set, a key must be given, too!" .Values.edumfa.admin.password.key }}
-      name: admin-password-secret
-      readOnly: true
+    {{- if hasKey .specSettings "volumeMounts" }}
+      {{- tpl .specSettings.volumeMounts . | nindent 4 }}
     {{- end }}
-    {{- with .specSettings.volumeMounts }}
+    {{- with .specValues.volumeMounts }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
+  {{- if hasKey .specSettings "containerExtraConf" }}
+    {{- tpl .specSettings.containerExtraConf . | nindent 2 }}
+  {{- end}}
 volumes:
   - name: tmp
     emptyDir: {}
@@ -154,30 +129,24 @@ volumes:
         - key: {{ required "A key for the database password secret has to be provided." .Values.edumfa.db.password.key }}
           path: {{ required "A key for the database password secret has to be provided." .Values.edumfa.db.password.key }}
       defaultMode: 0440
-  {{- if and (eq .containerType "helm_init") .Values.edumfa.admin.password.existingSecret }}
-  - name: admin-password-secret
-    secret:
-      secretName: {{ .Values.edumfa.admin.password.existingSecret }}
-      items:
-        - key: {{ required "If .Values.edumfa.admin.password.existingSecret is set, a key must be given, too!" .Values.edumfa.admin.password.key }}
-          path: {{ required "If .Values.edumfa.admin.password.existingSecret is set, a key must be given, too!" .Values.edumfa.admin.password.key }}
-      defaultMode: 0440
+  {{- if hasKey .specSettings "volumes" }}
+    {{- tpl .specSettings.volumes . | nindent 2 }}
   {{- end }}
-  {{- with .specSettings.volumes }}
+  {{- with .specValues.volumes }}
     {{- toYaml . | nindent 2 }}
   {{- end }}
 
-{{- with .specSettings.nodeSelector }}
+{{- with .specValues.nodeSelector }}
 nodeSelector:
 {{- toYaml . | nindent 2 }}
 {{- end }}
 
-{{- with .specSettings.affinity }}
+{{- with .specValues.affinity }}
 affinity:
 {{- toYaml . | nindent 2 }}
 {{- end }}
 
-{{- with .specSettings.tolerations }}
+{{- with .specValues.tolerations }}
 tolerations:
 {{- toYaml . | nindent 2 }}
 {{- end }}

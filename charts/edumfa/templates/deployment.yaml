@@ -26,5 +26,24 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- $spec_params := dict "Chart" .Chart "Values" .Values "containerType" "helm_worker" "specSettings" .Values.edumfa.worker }}
+      {{- $env := `
+- name: CONTAINER_TYPE
+  value: "helm_worker"
+      ` }}
+      {{- $container_extra_conf := `
+ports:
+- name: http
+  containerPort: 8000
+  protocol: TCP
+{{- with .Values.edumfa.worker.livenessProbe }}
+livenessProbe:
+  {{- toYaml . | nindent 4 }}
+{{- end }}
+{{- with .Values.edumfa.worker.readinessProbe }}
+readinessProbe:
+  {{- toYaml . | nindent 4 }}
+{{- end }}
+      ` }}
+      {{- $spec_settings := dict "env" $env "containerExtraConf" $container_extra_conf }}
+      {{- $spec_params := dict "Chart" .Chart "Values" .Values "specSettings" $spec_settings "specValues" .Values.edumfa.worker }}
       {{- include "edumfa.spec" $spec_params | nindent 6}}

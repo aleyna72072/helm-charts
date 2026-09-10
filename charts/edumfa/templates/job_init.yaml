@@ -15,5 +15,44 @@ spec:
       {{- end }}
     spec:
       restartPolicy: OnFailure
-      {{- $spec_params := dict "Chart" .Chart "Values" .Values "containerType" "helm_init" "specSettings" .Values.edumfa.init }}
+      {{- $env := `
+- name: CONTAINER_TYPE
+  value: "helm_init"
+{{- if .Values.edumfa.admin.enabled }}
+- name: EDUMFA_ADMIN_ENABLE
+  value: "true"
+  {{- with .Values.edumfa.admin.username }}
+- name: EDUMFA_ADMIN_USER
+  value: {{ . }}
+  {{- end }}
+  {{- if .Values.edumfa.admin.password.existingSecret }}
+- name: EDUMFA_ADMIN_PASS_FILE
+  value: /run/edumfa-admin-password
+  {{- end }}
+{{- else }}
+- name: EDUMFA_ADMIN_ENABLE
+  value: "false"
+{{- end }}
+      ` }}
+      {{- $volumes := `
+{{- if .Values.edumfa.admin.password.existingSecret }}
+- name: admin-password-secret
+  secret:
+    secretName: {{ .Values.edumfa.admin.password.existingSecret }}
+    items:
+      - key: {{ required "If .Values.edumfa.admin.password.existingSecret is set, a key must be given, too!" .Values.edumfa.admin.password.key }}
+        path: {{ required "If .Values.edumfa.admin.password.existingSecret is set, a key must be given, too!" .Values.edumfa.admin.password.key }}
+    defaultMode: 0440
+{{- end }}
+      ` }}
+      {{- $volumeMounts := `
+{{- if .Values.edumfa.admin.password.existingSecret }}
+- mountPath: /run/edumfa-admin-password
+  subPath: {{ required "If .Values.edumfa.admin.password.existingSecret is set, a key must be given, too!" .Values.edumfa.admin.password.key }}
+  name: admin-password-secret
+  readOnly: true
+{{- end }}
+      ` }}
+      {{- $spec_settings := dict "env" $env "volumes" $volumes "volumeMounts" $volumeMounts }}
+      {{- $spec_params := dict "Chart" .Chart "Values" .Values "specSettings" $spec_settings "specValues" .Values.edumfa.init }}
       {{- include "edumfa.spec" $spec_params | nindent 6}}

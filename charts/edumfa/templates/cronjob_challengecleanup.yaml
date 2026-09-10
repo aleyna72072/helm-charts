@@ -17,6 +17,7 @@ spec:
         spec:
           restartPolicy: OnFailure
           {{- $command := list "edumfa-token-janitor" "cleanupchallenges" }}
-          {{- $spec_params := dict "Chart" .Chart "Values" .Values "containerType" "cronjob" "specSettings" .Values.edumfa.challengeCleanup "command" $command }}
+          {{- $spec_settings := dict "command" $command}}
+          {{- $spec_params := dict "Chart" .Chart "Values" .Values "specSettings" $spec_settings "specValues" .Values.edumfa.challengeCleanup }}
           {{- include "edumfa.spec" $spec_params | nindent 10}}
 {{- end }}

@@ -21,6 +21,7 @@ spec:
             {{- $command = append $command "--node"}}
             {{- $command = append $command .Values.edumfa.edumfaCron.nodeName }}
           {{- end }}
-          {{- $spec_params := dict "Chart" .Chart "Values" .Values "containerType" "cronjob" "specSettings" .Values.edumfa.edumfaCron "command" $command }}
+            {{- $spec_settings := dict "command" $command}}
+          {{- $spec_params := dict "Chart" .Chart "Values" .Values "specSettings" $spec_settings "specValues" .Values.edumfa.edumfaCron }}
           {{- include "edumfa.spec" $spec_params | nindent 10}}
 {{- end }}

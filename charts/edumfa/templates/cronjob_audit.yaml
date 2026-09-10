@@ -29,6 +29,7 @@ spec:
             {{- $command = append $command "--highwatermark"}}
             {{- $command = append $command .Values.edumfa.auditRotation.highwatermark }}
           {{- end }}
-          {{- $spec_params := dict "Chart" .Chart "Values" .Values "containerType" "cronjob" "specSettings" .Values.edumfa.auditRotation "command" $command }}
+          {{- $spec_settings := dict "command" $command }}
+          {{- $spec_params := dict "Chart" .Chart "Values" .Values "specSettings" $spec_settings "specValues" .Values.edumfa.auditRotation }}
           {{- include "edumfa.spec" $spec_params | nindent 10}}
 {{- end }}

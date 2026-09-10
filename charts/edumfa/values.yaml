@@ -20,7 +20,7 @@ edumfa:
   admin:
     # This only disables creation of a new admin. If there is already one
     # created, you'll have to delete it manually.
-    enabled: false
+    enabled: true
     username: ""
     # Instead of generating a password each Helm install/upgrade, set a static
     # one here.
