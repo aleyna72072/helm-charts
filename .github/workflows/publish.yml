@@ -1,18 +1,16 @@
 name: publish
 
-permissions:
-  contents: write
-
 on:
   push:
     tags:
       - "edumfa-*"
 
 jobs:
-  docker:
+  publish:
     runs-on: ubuntu-latest
     permissions:
       packages: write
+      contents: write
     env:
        REGISTRY: "ghcr.io"
        REPOSITORY: "oci://ghcr.io/aleyna72072/helm-charts"
